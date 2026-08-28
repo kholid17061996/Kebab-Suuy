@@ -223,7 +223,7 @@ export default function ReportsPage() {
                     tickFormatter={(val) => `Rp ${(val/1000)}k`} 
                   />
                   <Tooltip 
-                    formatter={(value: any, name: string) => [`Rp ${Number(value).toLocaleString('id-ID')}`, name]}
+                    formatter={(value: any, name: any) => [`Rp ${Number(value).toLocaleString('id-ID')}`, name]}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-md)' }}
                   />
                   <Area type="monotone" dataKey="Pendapatan" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorPendapatan)" activeDot={{ r: 6 }} />

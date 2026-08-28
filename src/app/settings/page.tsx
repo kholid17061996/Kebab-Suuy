@@ -304,7 +304,12 @@ export default function MenuManagementPage() {
       ) : (
         /* TAB: KATEGORI */
         categories.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)' }}>Belum ada kategori di database.</p>
+          <div style={{ textAlign: 'center', padding: '48px 0', background: 'var(--surface)', borderRadius: 'var(--radius-lg)' }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>Belum ada kategori di database.</p>
+            <button onClick={() => handleOpenCategoryModal()} className="btn btn-primary">
+              + Tambah Kategori Pertama
+            </button>
+          </div>
         ) : (
           <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
