@@ -361,6 +361,25 @@ body {
     text-align: center;
   }
 
+  /* Make header responsive on mobile */
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .header > div:last-child {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  
+  .header select, .header button {
+    flex: 1;
+    font-size: 12px;
+    padding: 8px;
+    min-width: 30%;
+  }
+
   /* Hide Desktop Cart Panel by Default on Mobile */
   .cart-panel {
     display: none;

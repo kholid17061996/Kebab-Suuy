@@ -90,7 +90,7 @@ export default function HistoryPage() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="header">
         <div>
           <h1>Riwayat & Performa Kasir</h1>
           <p style={{ color: 'var(--text-muted)' }}>Pantau transaksi yang Anda lakukan</p>
