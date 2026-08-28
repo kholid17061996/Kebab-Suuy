@@ -333,6 +333,34 @@ body {
     padding-bottom: 90px; /* Extra space for FAB */
   }
 
+  /* Make product grid fit 5 items per row on mobile */
+  .product-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+
+  .product-card {
+    padding: 8px;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .product-image {
+    height: 50px;
+    font-size: 28px !important; /* Smaller emoji for mobile */
+  }
+
+  .product-title {
+    font-size: 9px;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .product-price {
+    font-size: 9px;
+    text-align: center;
+  }
+
   /* Hide Desktop Cart Panel by Default on Mobile */
   .cart-panel {
     display: none;
