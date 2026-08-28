@@ -344,7 +344,7 @@ export default function MenuManagementPage() {
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Harga Dasar (Rp)</label>
-                <input required type="text" value={editingProduct.base_price ? `Rp. ${editingProduct.base_price.toLocaleString('id-ID')}` : ''} onChange={e => {
+                <input required type="text" value={editingProduct.base_price !== undefined ? `Rp. ${editingProduct.base_price.toLocaleString('id-ID')}` : ''} onChange={e => {
                   const rawValue = e.target.value.replace(/[^0-9]/g, '');
                   setEditingProduct({...editingProduct, base_price: parseInt(rawValue, 10) || 0})
                 }} style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }} />
@@ -382,7 +382,7 @@ export default function MenuManagementPage() {
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Harga (Rp)</label>
-                <input required type="text" value={editingTopping.price ? `Rp. ${editingTopping.price.toLocaleString('id-ID')}` : ''} onChange={e => {
+                <input required type="text" value={editingTopping.price !== undefined ? `Rp. ${editingTopping.price.toLocaleString('id-ID')}` : ''} onChange={e => {
                   const rawValue = e.target.value.replace(/[^0-9]/g, '');
                   setEditingTopping({...editingTopping, price: parseInt(rawValue, 10) || 0})
                 }} style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }} />

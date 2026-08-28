@@ -450,7 +450,7 @@ export default function POSPage() {
             <form onSubmit={handleExpense} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Nominal Pengeluaran (Rp)</label>
-                <input required type="text" value={expenseAmount ? `Rp. ${expenseAmount.toLocaleString('id-ID')}` : ''} onChange={e => {
+                <input required type="text" value={expenseAmount !== undefined ? `Rp. ${expenseAmount.toLocaleString('id-ID')}` : ''} onChange={e => {
                   const rawValue = e.target.value.replace(/[^0-9]/g, '');
                   setExpenseAmount(parseInt(rawValue, 10) || 0);
                 }} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }} />
