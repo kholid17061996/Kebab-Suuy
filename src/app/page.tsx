@@ -31,6 +31,7 @@ export default function POSPage() {
   const [toppingProduct, setToppingProduct] = useState<Product | null>(null);
   const [selectedToppings, setSelectedToppings] = useState<Topping[]>([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showMobileCart, setShowMobileCart] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -209,9 +210,19 @@ export default function POSPage() {
       </div>
 
       {/* Cart Panel */}
-      <div className="cart-panel">
+      <div className={`cart-panel ${showMobileCart ? 'mobile-active' : ''}`}>
         <div className="cart-header">
-          <span>Pesanan Saat Ini</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {showMobileCart && (
+              <button 
+                onClick={() => setShowMobileCart(false)} 
+                style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: 'var(--text-main)', padding: '0 8px 0 0' }}
+              >
+                ✕
+              </button>
+            )}
+            <span>Pesanan Saat Ini</span>
+          </div>
           <span style={{ color: 'var(--primary)' }}>{cart.reduce((sum, item) => sum + item.qty, 0)} item</span>
         </div>
 
@@ -329,6 +340,16 @@ export default function POSPage() {
           </div>
         </div>
       )}
+
+      {/* Floating Action Button for Mobile Cart */}
+      <div className="fab-cart" onClick={() => setShowMobileCart(true)}>
+        🛒
+        {cart.reduce((sum, item) => sum + item.qty, 0) > 0 && (
+          <div className="fab-badge">
+            {cart.reduce((sum, item) => sum + item.qty, 0)}
+          </div>
+        )}
+      </div>
     </>
   );
 }
