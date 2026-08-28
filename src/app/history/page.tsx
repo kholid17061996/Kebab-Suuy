@@ -126,7 +126,7 @@ export default function HistoryPage() {
                     tickFormatter={(val) => `Rp ${(val/1000)}k`} 
                   />
                   <Tooltip 
-                    formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')}`, 'Pendapatan']}
+                    formatter={(value: any) => [`Rp ${Number(value).toLocaleString('id-ID')}`, 'Pendapatan']}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-md)' }}
                   />
                   <Line type="monotone" dataKey="Pendapatan" stroke="var(--primary)" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
