@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 type Transaction = {
   id: string;
@@ -119,22 +119,22 @@ export default function ReportsPage() {
         <p>Memuat data laporan...</p>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px', marginBottom: '32px' }}>
-            <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+            <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
               <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Total Pendapatan (Bulan Ini)</h3>
               <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--primary)' }}>
                 Rp {totalRevenue.toLocaleString('id-ID')}
               </div>
             </div>
 
-            <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
               <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Total Transaksi (Bulan Ini)</h3>
               <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
                 {monthlyTransactions.length}
               </div>
             </div>
 
-            <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
               <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Metode Pembayaran (Bulan Ini)</h3>
               <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
                 <div style={{ flex: 1, background: '#f8fafc', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
@@ -150,11 +150,17 @@ export default function ReportsPage() {
           </div>
 
           {/* Grafik Harian Admin */}
-          <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', marginBottom: '32px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', marginBottom: '32px', boxShadow: 'var(--shadow-sm)', width: '100%', overflow: 'hidden' }}>
             <h3 style={{ marginBottom: '16px' }}>Grafik Pendapatan Harian ({MONTHS[selectedMonth]} {selectedYear})</h3>
-            <div style={{ height: '350px', width: '100%' }}>
+            <div style={{ height: '350px', width: '100%', minWidth: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorPendapatan" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                   <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis 
@@ -168,8 +174,8 @@ export default function ReportsPage() {
                     formatter={(value: any) => [`Rp ${Number(value).toLocaleString('id-ID')}`, 'Pendapatan']}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-md)' }}
                   />
-                  <Line type="monotone" dataKey="Pendapatan" stroke="var(--primary)" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                </LineChart>
+                  <Area type="monotone" dataKey="Pendapatan" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorPendapatan)" activeDot={{ r: 6 }} />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
