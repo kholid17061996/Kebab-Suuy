@@ -1,0 +1,181 @@
+"use client";
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+type Transaction = {
+  id: string;
+  total_amount: number;
+  payment_method: string;
+  created_at: string;
+};
+
+const MONTHS = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+];
+
+export default function HistoryPage() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Default bulan sesuai device
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
+  const fetchHistory = async () => {
+    setLoading(true);
+    const startOfYear = new Date(selectedYear, 0, 1);
+    const endOfYear = new Date(selectedYear, 11, 31, 23, 59, 59);
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .gte('created_at', startOfYear.toISOString())
+      .lte('created_at', endOfYear.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (data) setTransactions(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, [selectedYear]);
+
+  // Filter transaksi HANYA untuk bulan dan tahun yang dipilih
+  const monthlyTransactions = transactions.filter(t => {
+    const date = new Date(t.created_at);
+    return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
+  });
+
+  // Proses data untuk grafik harian
+  const processChartData = () => {
+    const dailyData: Record<string, number> = {};
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    
+    for(let i=1; i<=daysInMonth; i++) {
+      dailyData[`Tgl ${i}`] = 0;
+    }
+
+    monthlyTransactions.forEach(t => {
+      const date = new Date(t.created_at);
+      const dayLabel = `Tgl ${date.getDate()}`;
+      if (dailyData[dayLabel] !== undefined) {
+        dailyData[dayLabel] += t.total_amount;
+      }
+    });
+
+    return Object.keys(dailyData).map(key => ({
+      name: key,
+      Pendapatan: dailyData[key]
+    }));
+  };
+
+  const chartData = processChartData();
+
+  return (
+    <div className="main-area" style={{ flex: 1, padding: '24px' }}>
+      <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div>
+          <h1>Riwayat & Performa Kasir</h1>
+          <p style={{ color: 'var(--text-muted)' }}>Pantau transaksi yang Anda lakukan</p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <select 
+            className="btn btn-outline"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            style={{ appearance: 'auto', paddingRight: '32px' }}
+          >
+            {MONTHS.map((m, i) => (
+              <option key={i} value={i}>{m}</option>
+            ))}
+          </select>
+          <select 
+            className="btn btn-outline"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            style={{ appearance: 'auto', paddingRight: '32px' }}
+          >
+            {Array.from({ length: 50 }, (_, i) => 2020 + i).map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <p>Memuat riwayat...</p>
+      ) : (
+        <>
+          {/* Grafik Harian Line */}
+          <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', marginBottom: '24px', boxShadow: 'var(--shadow-sm)' }}>
+            <h3 style={{ marginBottom: '16px' }}>Grafik Pendapatan Harian ({MONTHS[selectedMonth]} {selectedYear})</h3>
+            <div style={{ height: '300px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis 
+                    stroke="var(--text-muted)" 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false}
+                    tickFormatter={(val) => `Rp ${(val/1000)}k`} 
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')}`, 'Pendapatan']}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-md)' }}
+                  />
+                  <Line type="monotone" dataKey="Pendapatan" stroke="var(--primary)" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Daftar Riwayat */}
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-color)', borderBottom: '1px solid var(--border-color)' }}>
+                  <th style={{ padding: '16px' }}>Waktu</th>
+                  <th style={{ padding: '16px' }}>Total Belanja</th>
+                  <th style={{ padding: '16px' }}>Metode</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monthlyTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada transaksi di bulan ini</td>
+                  </tr>
+                ) : (
+                  monthlyTransactions.map(t => (
+                    <tr key={t.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '16px' }}>
+                        {new Date(t.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </td>
+                      <td style={{ padding: '16px', fontWeight: 600, color: 'var(--primary)' }}>
+                        Rp {t.total_amount.toLocaleString('id-ID')}
+                      </td>
+                      <td style={{ padding: '16px' }}>
+                        <span style={{ 
+                          background: t.payment_method === 'QRIS' ? '#e0f2fe' : '#dcfce7',
+                          color: t.payment_method === 'QRIS' ? '#0284c7' : '#166534',
+                          padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600
+                        }}>
+                          {t.payment_method}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
