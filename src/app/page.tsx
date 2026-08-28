@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-type Topping = { id: string; name: string; price: number };
+type Topping = { id: string; name: string; price: number; category_id?: string; };
 
 type Category = { id: string; name: string };
 type Product = { id: string; name: string; base_price: number; category_id: string; image_url: string };
@@ -32,6 +32,11 @@ export default function POSPage() {
   const [selectedToppings, setSelectedToppings] = useState<Topping[]>([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showMobileCart, setShowMobileCart] = useState(false);
+
+  // Expense states
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenseAmount, setExpenseAmount] = useState<number>(0);
+  const [expenseNote, setExpenseNote] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,6 +68,29 @@ export default function POSPage() {
     if (topRes.data) setAvailableToppings(topRes.data);
     
     setLoading(false);
+  };
+
+  const handleExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (expenseAmount <= 0) return alert('Nominal harus lebih dari 0');
+    if (!expenseNote) return alert('Keterangan harus diisi');
+
+    setIsProcessing(true);
+    try {
+      const { error } = await supabase.from('expenses').insert([{
+        amount: expenseAmount,
+        note: expenseNote,
+      }]);
+      if (error) throw error;
+      alert('Pengeluaran berhasil dicatat!');
+      setShowExpenseModal(false);
+      setExpenseAmount(0);
+      setExpenseNote('');
+    } catch (error: any) {
+      alert('Gagal mencatat pengeluaran: ' + error.message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -101,13 +129,11 @@ export default function POSPage() {
     : products.filter(p => p.category_id === activeCatId);
 
   const handleProductClick = (product: Product) => {
-    // Cari nama kategori dari ID
-    const catName = categories.find(c => c.id === product.category_id)?.name || '';
+    const productToppings = availableToppings.filter(
+      t => t.category_id === product.category_id || !t.category_id
+    );
     
-    // Burger, Kebab, dan Quesadilla bisa pakai topping (Asumsi Quesadilla ada di kategori 'Lainnya' atau nama produknya mengandung Quesadilla)
-    const canHaveTopping = catName.includes('Kebab') || catName.includes('Burger') || product.name.includes('Quesadilla');
-    
-    if (canHaveTopping && !product.name.includes('Frozen')) {
+    if (productToppings.length > 0) {
       setToppingProduct(product);
       setSelectedToppings([]);
     } else {
@@ -213,8 +239,17 @@ export default function POSPage() {
             <h1>Kebab Suuy</h1>
             <p style={{ color: 'var(--text-muted)' }}>Sistem Kasir Pintar</p>
           </div>
-          <div style={{ color: 'var(--text-main)', fontWeight: 600 }}>
-            {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button 
+              className="btn btn-outline" 
+              style={{ padding: '8px 16px', borderColor: 'var(--danger)', color: 'var(--danger)' }}
+              onClick={() => setShowExpenseModal(true)}
+            >
+              💸 Kas Keluar
+            </button>
+            <div style={{ color: 'var(--text-main)', fontWeight: 600 }}>
+              {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </div>
           </div>
         </div>
 
@@ -346,7 +381,7 @@ export default function POSPage() {
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Untuk {toppingProduct.name}</p>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}>
-              {availableToppings.map(topping => {
+              {availableToppings.filter(t => t.category_id === toppingProduct.category_id || !t.category_id).map(topping => {
                 const isSelected = selectedToppings.some(t => t.name === topping.name);
                 return (
                   <div 
@@ -401,6 +436,37 @@ export default function POSPage() {
             <button className="btn btn-outline" style={{ width: '100%' }} onClick={() => setShowPaymentModal(false)}>
               Batal & Kembali
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pengeluaran (Cash Out) */}
+      {showExpenseModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--surface)', padding: '32px', borderRadius: 'var(--radius-lg)', width: '400px', boxShadow: 'var(--shadow-lg)' }}>
+            <h2 style={{ marginBottom: '8px' }}>Kas Keluar (Petty Cash)</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Catat pengeluaran mendadak di kasir.</p>
+            
+            <form onSubmit={handleExpense} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Nominal Pengeluaran (Rp)</label>
+                <input required type="text" value={expenseAmount ? `Rp. ${expenseAmount.toLocaleString('id-ID')}` : ''} onChange={e => {
+                  const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                  setExpenseAmount(parseInt(rawValue, 10) || 0);
+                }} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Keterangan / Tujuan</label>
+                <input required type="text" placeholder="Contoh: Beli Galon, Kembalian" value={expenseNote} onChange={e => setExpenseNote(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }} />
+              </div>
+              
+              <div style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
+                <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => setShowExpenseModal(false)}>Batal</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1, background: 'var(--danger)', border: 'none' }} disabled={isProcessing}>
+                  {isProcessing ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

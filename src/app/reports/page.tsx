@@ -11,6 +11,13 @@ type Transaction = {
   created_at: string;
 };
 
+type Expense = {
+  id: string;
+  amount: number;
+  note: string;
+  created_at: string;
+};
+
 const MONTHS = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
   "Juli", "Agustus", "September", "Oktober", "November", "Desember"
@@ -18,6 +25,7 @@ const MONTHS = [
 
 export default function ReportsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Default bulan sesuai device
@@ -29,18 +37,33 @@ export default function ReportsPage() {
     const startOfYear = new Date(selectedYear, 0, 1);
     const endOfYear = new Date(selectedYear, 11, 31, 23, 59, 59);
     
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*')
-      .gte('created_at', startOfYear.toISOString())
-      .lte('created_at', endOfYear.toISOString())
-      .order('created_at', { ascending: false });
+    const [trxRes, expRes] = await Promise.all([
+      supabase
+        .from('transactions')
+        .select('*')
+        .gte('created_at', startOfYear.toISOString())
+        .lte('created_at', endOfYear.toISOString())
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('expenses')
+        .select('*')
+        .gte('created_at', startOfYear.toISOString())
+        .lte('created_at', endOfYear.toISOString())
+        .order('created_at', { ascending: false })
+    ]);
       
-    if (error) {
-      console.error('Error fetching transactions:', error);
+    if (trxRes.error) {
+      console.error('Error fetching transactions:', trxRes.error);
     } else {
-      setTransactions(data || []);
+      setTransactions(trxRes.data || []);
     }
+    
+    if (expRes.error) {
+      console.error('Error fetching expenses:', expRes.error);
+    } else {
+      setExpenses(expRes.data || []);
+    }
+    
     setLoading(false);
   };
 
@@ -48,36 +71,54 @@ export default function ReportsPage() {
     fetchTransactions();
   }, [selectedYear]);
 
-  // Filter transaksi HANYA untuk bulan dan tahun yang dipilih
+  // Filter HANYA untuk bulan dan tahun yang dipilih
   const monthlyTransactions = transactions.filter(t => {
     const date = new Date(t.created_at);
     return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
   });
+
+  const monthlyExpenses = expenses.filter(e => {
+    const date = new Date(e.created_at);
+    return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
+  });
   
-  const totalRevenue = monthlyTransactions.reduce((sum, t) => sum + t.total_amount, 0);
+  const totalGrossRevenue = monthlyTransactions.reduce((sum, t) => sum + t.total_amount, 0);
+  const totalExpense = monthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalNetRevenue = totalGrossRevenue - totalExpense;
+  
   const qrisCount = monthlyTransactions.filter(t => t.payment_method === 'QRIS').length;
   const cashCount = monthlyTransactions.filter(t => t.payment_method === 'Tunai').length;
 
   // Proses data untuk grafik garis harian
   const processDailyData = () => {
-    const dailyData: Record<string, number> = {};
+    const dailyData: Record<string, { Pendapatan: number, Pengeluaran: number }> = {};
     const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
     
     for(let i=1; i<=daysInMonth; i++) {
-      dailyData[`Tgl ${i}`] = 0;
+      dailyData[`Tgl ${i}`] = { Pendapatan: 0, Pengeluaran: 0 };
     }
 
     monthlyTransactions.forEach(t => {
       const date = new Date(t.created_at);
       const dayLabel = `Tgl ${date.getDate()}`;
-      if (dailyData[dayLabel] !== undefined) {
-        dailyData[dayLabel] += t.total_amount;
+      if (dailyData[dayLabel]) {
+        dailyData[dayLabel].Pendapatan += t.total_amount;
+      }
+    });
+
+    monthlyExpenses.forEach(e => {
+      const date = new Date(e.created_at);
+      const dayLabel = `Tgl ${date.getDate()}`;
+      if (dailyData[dayLabel]) {
+        dailyData[dayLabel].Pengeluaran += e.amount;
       }
     });
 
     return Object.keys(dailyData).map(key => ({
       name: key,
-      Pendapatan: dailyData[key]
+      Pendapatan: dailyData[key].Pendapatan,
+      Pengeluaran: dailyData[key].Pengeluaran,
+      Bersih: dailyData[key].Pendapatan - dailyData[key].Pengeluaran
     }));
   };
 
@@ -121,19 +162,26 @@ export default function ReportsPage() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '32px' }}>
             <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-              <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Total Pendapatan (Bulan Ini)</h3>
+              <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Pendapatan Kotor (Omzet)</h3>
               <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--primary)' }}>
-                Rp {totalRevenue.toLocaleString('id-ID')}
+                Rp {totalGrossRevenue.toLocaleString('id-ID')}
               </div>
             </div>
 
             <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-              <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Total Transaksi (Bulan Ini)</h3>
-              <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
-                {monthlyTransactions.length}
+              <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Total Pengeluaran Kasir</h3>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--danger)' }}>
+                - Rp {totalExpense.toLocaleString('id-ID')}
               </div>
             </div>
 
+            <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'pointer', border: '2px solid var(--primary)' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+              <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Pendapatan Bersih (Net Cash)</h3>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--text-main)' }}>
+                Rp {totalNetRevenue.toLocaleString('id-ID')}
+              </div>
+            </div>
+            
             <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
               <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Metode Pembayaran (Bulan Ini)</h3>
               <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
@@ -160,6 +208,10 @@ export default function ReportsPage() {
                       <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8}/>
                       <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
                     </linearGradient>
+                    <linearGradient id="colorBersih" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                   <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
@@ -171,10 +223,11 @@ export default function ReportsPage() {
                     tickFormatter={(val) => `Rp ${(val/1000)}k`} 
                   />
                   <Tooltip 
-                    formatter={(value: any) => [`Rp ${Number(value).toLocaleString('id-ID')}`, 'Pendapatan']}
+                    formatter={(value: any, name: string) => [`Rp ${Number(value).toLocaleString('id-ID')}`, name]}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-md)' }}
                   />
                   <Area type="monotone" dataKey="Pendapatan" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorPendapatan)" activeDot={{ r: 6 }} />
+                  <Area type="monotone" dataKey="Bersih" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorBersih)" activeDot={{ r: 6 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
