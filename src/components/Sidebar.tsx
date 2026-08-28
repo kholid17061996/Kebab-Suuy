@@ -48,7 +48,11 @@ export default function Sidebar() {
         <>
           <Link href="/reports" className={`nav-item ${pathname === '/reports' ? 'active' : ''}`} style={{ textDecoration: 'none', marginTop: isAdmin ? '24px' : '0' }}>
             <span style={{ fontSize: '24px' }}>📊</span>
-            Laporan
+            Grafik
+          </Link>
+          <Link href="/history" className={`nav-item ${pathname === '/history' ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
+            <span style={{ fontSize: '24px' }}>📜</span>
+            Riwayat
           </Link>
           <Link href="/stock" className={`nav-item ${pathname === '/stock' ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
             <span style={{ fontSize: '24px' }}>📦</span>

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 type Transaction = {
   id: string;
@@ -50,33 +49,47 @@ export default function HistoryPage() {
     return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
   });
 
-  // Proses data untuk grafik harian
-  const processChartData = () => {
-    const dailyData: Record<string, number> = {};
-    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-    
-    for(let i=1; i<=daysInMonth; i++) {
-      dailyData[`Tgl ${i}`] = 0;
+  // Process data for charts removed as this page is only for history list
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [startY, setStartY] = useState(0);
+  const [pullDistance, setPullDistance] = useState(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.currentTarget as HTMLDivElement;
+    if (target.scrollTop <= 0) {
+      setStartY(e.touches[0].clientY);
     }
-
-    monthlyTransactions.forEach(t => {
-      const date = new Date(t.created_at);
-      const dayLabel = `Tgl ${date.getDate()}`;
-      if (dailyData[dayLabel] !== undefined) {
-        dailyData[dayLabel] += t.total_amount;
-      }
-    });
-
-    return Object.keys(dailyData).map(key => ({
-      name: key,
-      Pendapatan: dailyData[key]
-    }));
   };
 
-  const chartData = processChartData();
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startY > 0) {
+      const currentY = e.touches[0].clientY;
+      const dist = currentY - startY;
+      if (dist > 0 && dist < 150) {
+        setPullDistance(dist);
+      }
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (pullDistance > 60) {
+      setIsRefreshing(true);
+      await fetchHistory();
+      setIsRefreshing(false);
+    }
+    setStartY(0);
+    setPullDistance(0);
+  };
 
   return (
-    <div className="main-area" style={{ flex: 1, padding: '24px' }}>
+    <div 
+      className="main-area" 
+      style={{ flex: 1, padding: '24px', position: 'relative' }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1>Riwayat & Performa Kasir</h1>
@@ -106,75 +119,74 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      {loading ? (
+      {pullDistance > 0 && (
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '16px', height: `${pullDistance}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: pullDistance === 0 ? '0.3s' : 'none', overflow: 'hidden' }}>
+          <span style={{ fontSize: '24px', transform: `rotate(${pullDistance * 2}deg)` }}>🔄</span>
+        </div>
+      )}
+      
+      {isRefreshing && (
+        <div style={{ textAlign: 'center', color: 'var(--primary)', marginBottom: '16px' }}>
+          <span style={{ fontSize: '24px', animation: 'spin 1s linear infinite', display: 'inline-block' }}>🔄</span>
+          <p>Menyegarkan data...</p>
+        </div>
+      )}
+
+      {loading && !isRefreshing ? (
         <p>Memuat riwayat...</p>
       ) : (
-        <>
-          {/* Grafik Harian Line */}
-          <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', marginBottom: '24px', boxShadow: 'var(--shadow-sm)' }}>
-            <h3 style={{ marginBottom: '16px' }}>Grafik Pendapatan Harian ({MONTHS[selectedMonth]} {selectedYear})</h3>
-            <div style={{ height: '300px', width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis 
-                    stroke="var(--text-muted)" 
-                    fontSize={12} 
-                    tickLine={false} 
-                    axisLine={false}
-                    tickFormatter={(val) => `Rp ${(val/1000)}k`} 
-                  />
-                  <Tooltip 
-                    formatter={(value: any) => [`Rp ${Number(value).toLocaleString('id-ID')}`, 'Pendapatan']}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-md)' }}
-                  />
-                  <Line type="monotone" dataKey="Pendapatan" stroke="var(--primary)" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                </LineChart>
-              </ResponsiveContainer>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '80px' }}>
+          {monthlyTransactions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', background: 'var(--surface)', borderRadius: 'var(--radius-lg)' }}>
+              <span style={{ fontSize: '48px', color: 'var(--text-muted)' }}>📭</span>
+              <p style={{ color: 'var(--text-muted)', marginTop: '16px' }}>Belum ada transaksi di bulan ini</p>
             </div>
-          </div>
-
-          {/* Daftar Riwayat */}
-          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: 'var(--bg-color)', borderBottom: '1px solid var(--border-color)' }}>
-                  <th style={{ padding: '16px' }}>Waktu</th>
-                  <th style={{ padding: '16px' }}>Total Belanja</th>
-                  <th style={{ padding: '16px' }}>Metode</th>
-                </tr>
-              </thead>
-              <tbody>
-                {monthlyTransactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada transaksi di bulan ini</td>
-                  </tr>
-                ) : (
-                  monthlyTransactions.map(t => (
-                    <tr key={t.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '16px' }}>
-                        {new Date(t.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
-                      </td>
-                      <td style={{ padding: '16px', fontWeight: 600, color: 'var(--primary)' }}>
-                        Rp {t.total_amount.toLocaleString('id-ID')}
-                      </td>
-                      <td style={{ padding: '16px' }}>
-                        <span style={{ 
-                          background: t.payment_method === 'QRIS' ? '#e0f2fe' : '#dcfce7',
-                          color: t.payment_method === 'QRIS' ? '#0284c7' : '#166534',
-                          padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600
-                        }}>
-                          {t.payment_method}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </>
+          ) : (
+            monthlyTransactions.map(t => (
+              <div key={t.id} style={{ 
+                background: 'var(--surface)', 
+                borderRadius: 'var(--radius-lg)', 
+                padding: '20px', 
+                boxShadow: 'var(--shadow-sm)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                transition: 'transform 0.2s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ 
+                    width: '48px', height: '48px', borderRadius: '50%', 
+                    background: t.payment_method === 'QRIS' ? '#e0f2fe' : '#dcfce7',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px'
+                  }}>
+                    {t.payment_method === 'QRIS' ? '📱' : '💵'}
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Struk #{t.id.split('-')[0]}</h4>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                      {new Date(t.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '18px' }}>
+                    Rp {t.total_amount.toLocaleString('id-ID')}
+                  </div>
+                  <span style={{ 
+                    display: 'inline-block', marginTop: '4px', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
+                    background: t.payment_method === 'QRIS' ? '#0284c7' : '#166534',
+                    color: 'white'
+                  }}>
+                    {t.payment_method}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       )}
     </div>
   );

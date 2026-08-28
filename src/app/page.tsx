@@ -50,6 +50,52 @@ export default function POSPage() {
     fetchData();
   }, []);
 
+  const fetchData = async () => {
+    setLoading(true);
+    const [catRes, prodRes, topRes] = await Promise.all([
+      supabase.from('categories').select('*').order('name'),
+      supabase.from('products').select('*').order('name'),
+      supabase.from('toppings').select('*').order('name')
+    ]);
+    
+    if (catRes.data) setCategories(catRes.data);
+    if (prodRes.data) setProducts(prodRes.data);
+    if (topRes.data) setAvailableToppings(topRes.data);
+    
+    setLoading(false);
+  };
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [startY, setStartY] = useState(0);
+  const [pullDistance, setPullDistance] = useState(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.currentTarget as HTMLDivElement;
+    if (target.scrollTop <= 0) {
+      setStartY(e.touches[0].clientY);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startY > 0) {
+      const currentY = e.touches[0].clientY;
+      const dist = currentY - startY;
+      if (dist > 0 && dist < 150) {
+        setPullDistance(dist);
+      }
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (pullDistance > 60) {
+      setIsRefreshing(true);
+      await fetchData();
+      setIsRefreshing(false);
+    }
+    setStartY(0);
+    setPullDistance(0);
+  };
+
   const filteredProducts = activeCatId === 'Semua' 
     ? products 
     : products.filter(p => p.category_id === activeCatId);
@@ -156,7 +202,12 @@ export default function POSPage() {
 
   return (
     <>
-      <div className="main-area">
+      <div 
+        className="main-area"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="header">
           <div>
             <h1>Kebab Suuy</h1>
@@ -167,7 +218,20 @@ export default function POSPage() {
           </div>
         </div>
 
-        {loading ? (
+        {pullDistance > 0 && (
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '16px', height: `${pullDistance}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: pullDistance === 0 ? '0.3s' : 'none', overflow: 'hidden' }}>
+            <span style={{ fontSize: '24px', transform: `rotate(${pullDistance * 2}deg)` }}>🔄</span>
+          </div>
+        )}
+        
+        {isRefreshing && (
+          <div style={{ textAlign: 'center', color: 'var(--primary)', marginBottom: '16px' }}>
+            <span style={{ fontSize: '24px', animation: 'spin 1s linear infinite', display: 'inline-block' }}>🔄</span>
+            <p>Menyegarkan menu...</p>
+          </div>
+        )}
+
+        {(loading && !isRefreshing) ? (
           <p>Memuat menu dari database...</p>
         ) : products.length === 0 ? (
           <div style={{ textAlign: 'center', marginTop: '40px', color: 'var(--text-muted)' }}>
@@ -276,7 +340,7 @@ export default function POSPage() {
 
       {/* Modal Topping */}
       {toppingProduct && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--surface)', padding: '32px', borderRadius: 'var(--radius-lg)', width: '400px', boxShadow: 'var(--shadow-lg)' }}>
             <h2 style={{ marginBottom: '8px' }}>Tambahkan Topping</h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Untuk {toppingProduct.name}</p>
@@ -307,7 +371,7 @@ export default function POSPage() {
 
       {/* Modal Pembayaran */}
       {showPaymentModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--surface)', padding: '40px', borderRadius: 'var(--radius-lg)', width: '500px', boxShadow: 'var(--shadow-lg)', textAlign: 'center' }}>
             <h2 style={{ marginBottom: '8px' }}>Pilih Metode Pembayaran</h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Total Tagihan: <strong>Rp {total.toLocaleString('id-ID')}</strong></p>

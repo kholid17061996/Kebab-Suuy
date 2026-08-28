@@ -174,32 +174,7 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: 'var(--bg-color)', borderBottom: '1px solid var(--border-color)' }}>
-                  <th style={{ padding: '16px' }}>ID Transaksi</th>
-                  <th style={{ padding: '16px' }}>Waktu</th>
-                  <th style={{ padding: '16px' }}>Total Belanja</th>
-                  <th style={{ padding: '16px' }}>Metode</th>
-                </tr>
-              </thead>
-              <tbody>
-                {monthlyTransactions.length === 0 ? (
-                  <tr><td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada transaksi di bulan ini</td></tr>
-                ) : (
-                  monthlyTransactions.map(t => (
-                    <tr key={t.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '14px' }}>{t.id.split('-')[0]}...</td>
-                      <td style={{ padding: '16px' }}>{new Date(t.created_at).toLocaleString('id-ID')}</td>
-                      <td style={{ padding: '16px', fontWeight: 500 }}>Rp {t.total_amount.toLocaleString('id-ID')}</td>
-                      <td style={{ padding: '16px' }}>{t.payment_method}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+
         </>
       )}
     </div>
