@@ -30,6 +30,17 @@ export default function StockPage() {
 
   useEffect(() => {
     fetchInventory();
+
+    const channel = supabase
+      .channel('stock-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
+        fetchInventory();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleAddItem = async (e: React.FormEvent) => {

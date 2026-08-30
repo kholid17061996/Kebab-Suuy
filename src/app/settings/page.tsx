@@ -59,6 +59,23 @@ export default function MenuManagementPage() {
 
   useEffect(() => {
     fetchData();
+
+    const channel = supabase
+      .channel('settings-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'toppings' }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // --- Product Actions ---

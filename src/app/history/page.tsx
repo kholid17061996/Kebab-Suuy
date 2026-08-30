@@ -58,9 +58,43 @@ export default function HistoryPage() {
     setLoading(false);
   };
 
+
+  // States for Transaction Details Modal
+  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
+  const [transactionItems, setTransactionItems] = useState<any[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+
   useEffect(() => {
     fetchHistory();
+
+    const channel = supabase
+      .channel('history-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
+        fetchHistory();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => {
+        fetchHistory();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedYear]);
+
+  const handleTransactionClick = async (transactionId: string) => {
+    setSelectedTransactionId(transactionId);
+    setLoadingItems(true);
+    const { data, error } = await supabase
+      .from('transaction_items')
+      .select('*')
+      .eq('transaction_id', transactionId);
+    
+    if (!error && data) {
+      setTransactionItems(data);
+    }
+    setLoadingItems(false);
+  };
 
   // Filter HANYA untuk bulan dan tahun yang dipilih
   const monthlyTransactions = transactions.filter(t => {
@@ -104,6 +138,36 @@ export default function HistoryPage() {
     setPullDistance(0);
   };
 
+  const today = new Date();
+  const todayOmzet = transactions
+    .filter(t => {
+      const d = new Date(t.created_at);
+      return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+    })
+    .reduce((sum, t) => sum + t.total_amount, 0);
+
+  const todayExpTotal = expenses
+    .filter(e => {
+      const d = new Date(e.created_at);
+      return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+    })
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  const monthlyOmzet = monthlyTransactions.reduce((sum, t) => sum + t.total_amount, 0);
+  const monthlyExpTotal = monthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const [showMonthly, setShowMonthly] = useState(false);
+  const [isHoveredOrTouched, setIsHoveredOrTouched] = useState(false);
+  const [selectedCard, setSelectedCard] = useState<'omzet' | 'pengeluaran' | null>(null);
+
+  useEffect(() => {
+    if (isHoveredOrTouched) return;
+    const timer = setInterval(() => {
+      setShowMonthly(prev => !prev);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [isHoveredOrTouched]);
+
   return (
     <div 
       className="main-area" 
@@ -138,6 +202,82 @@ export default function HistoryPage() {
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* Live Omzet Display (Animated Rolling Window Effect) */}
+      <div 
+        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}
+        onMouseEnter={() => setIsHoveredOrTouched(true)}
+        onMouseLeave={() => setIsHoveredOrTouched(false)}
+        onTouchStart={() => setIsHoveredOrTouched(true)}
+        onTouchEnd={() => {
+           // Provide a slight delay before resuming animation so the user can finish reading
+           setTimeout(() => setIsHoveredOrTouched(false), 2000);
+        }}
+      >
+        {/* Omzet Card */}
+        <div 
+          onClick={() => setSelectedCard('omzet')}
+          style={{ position: 'relative', height: '84px', perspective: '1000px', cursor: 'pointer' }}
+        >
+          {/* Bulanan (Underneath) */}
+          <div style={{ 
+            position: 'absolute', inset: 0, borderRadius: 'var(--radius-md)',
+            background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', color: 'white', padding: '16px',
+            transform: showMonthly ? 'scale(1)' : 'scale(0.95)',
+            opacity: showMonthly ? 1 : 0,
+            boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+            transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.8s'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '11px', opacity: 0.9, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Omzet Bulanan</h3>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '4px' }}>Rp {monthlyOmzet.toLocaleString('id-ID')}</div>
+          </div>
+
+          {/* Harian (Front Window Flap) */}
+          <div style={{ 
+            position: 'absolute', inset: 0, borderRadius: 'var(--radius-md)', transformOrigin: 'top',
+            background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', padding: '16px',
+            transform: showMonthly ? 'rotateX(90deg)' : 'rotateX(0deg)',
+            opacity: showMonthly ? 0 : 1,
+            boxShadow: '0 8px 16px rgba(16, 185, 129, 0.2)',
+            transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '11px', opacity: 0.9, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Omzet Harian</h3>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '4px' }}>Rp {todayOmzet.toLocaleString('id-ID')}</div>
+          </div>
+        </div>
+
+        {/* Pengeluaran Card */}
+        <div 
+          onClick={() => setSelectedCard('pengeluaran')}
+          style={{ position: 'relative', height: '84px', perspective: '1000px', cursor: 'pointer' }}
+        >
+          {/* Bulanan (Underneath) */}
+          <div style={{ 
+            position: 'absolute', inset: 0, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)',
+            background: 'var(--surface)', padding: '16px',
+            transform: showMonthly ? 'scale(1)' : 'scale(0.95)',
+            opacity: showMonthly ? 1 : 0,
+            boxShadow: '0 4px 6px rgba(0,0,0,0.02)',
+            transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.8s'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pengeluaran Bulanan</h3>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--danger)', marginTop: '4px' }}>Rp {monthlyExpTotal.toLocaleString('id-ID')}</div>
+          </div>
+
+          {/* Harian (Front Window Flap) */}
+          <div style={{ 
+            position: 'absolute', inset: 0, borderRadius: 'var(--radius-md)', transformOrigin: 'top', border: '1px solid var(--border-color)',
+            background: 'var(--surface)', padding: '16px',
+            transform: showMonthly ? 'rotateX(90deg)' : 'rotateX(0deg)',
+            opacity: showMonthly ? 0 : 1,
+            boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+            transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pengeluaran Harian</h3>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--danger)', marginTop: '4px' }}>Rp {todayExpTotal.toLocaleString('id-ID')}</div>
+          </div>
         </div>
       </div>
 
@@ -193,6 +333,7 @@ export default function HistoryPage() {
                   transition: 'transform 0.2s',
                   cursor: 'pointer'
                 }}
+                onClick={() => handleTransactionClick(t.id)}
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -266,6 +407,128 @@ export default function HistoryPage() {
               ))
             )
           )}
+        </div>
+      )}
+
+      {selectedCard && (
+        <div 
+          onClick={() => setSelectedCard(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backdropFilter: 'blur(4px)'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--surface)',
+              padding: '24px',
+              borderRadius: 'var(--radius-lg)',
+              width: '90%',
+              maxWidth: '400px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}
+          >
+            <h2 style={{ margin: '0 0 20px 0', fontSize: '20px', borderBottom: '2px solid var(--border-color)', paddingBottom: '12px' }}>
+              {selectedCard === 'omzet' ? 'Detail Omzet' : 'Detail Pengeluaran'}
+            </h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: selectedCard === 'omzet' ? 'linear-gradient(135deg, #10b981, #059669)' : 'var(--surface)', color: selectedCard === 'omzet' ? 'white' : 'inherit', border: selectedCard === 'omzet' ? 'none' : '1px solid var(--border-color)', padding: '16px', borderRadius: 'var(--radius-md)' }}>
+                <h3 style={{ margin: 0, fontSize: '13px', opacity: 0.9, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{selectedCard === 'omzet' ? 'Omzet Harian' : 'Pengeluaran Harian'}</h3>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', marginTop: '4px', color: selectedCard === 'omzet' ? 'white' : 'var(--danger)' }}>
+                  Rp {selectedCard === 'omzet' ? todayOmzet.toLocaleString('id-ID') : todayExpTotal.toLocaleString('id-ID')}
+                </div>
+              </div>
+              
+              <div style={{ background: selectedCard === 'omzet' ? 'linear-gradient(135deg, var(--primary), var(--primary-hover))' : 'var(--surface)', color: selectedCard === 'omzet' ? 'white' : 'inherit', border: selectedCard === 'omzet' ? 'none' : '1px solid var(--border-color)', padding: '16px', borderRadius: 'var(--radius-md)' }}>
+                <h3 style={{ margin: 0, fontSize: '13px', opacity: 0.9, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{selectedCard === 'omzet' ? `Omzet Bulanan (${MONTHS[selectedMonth]})` : `Pengeluaran Bulanan (${MONTHS[selectedMonth]})`}</h3>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', marginTop: '4px', color: selectedCard === 'omzet' ? 'white' : 'var(--danger)' }}>
+                  Rp {selectedCard === 'omzet' ? monthlyOmzet.toLocaleString('id-ID') : monthlyExpTotal.toLocaleString('id-ID')}
+                </div>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => setSelectedCard(null)}
+              className="btn btn-outline"
+              style={{ width: '100%', marginTop: '24px' }}
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedTransactionId && (
+        <div 
+          onClick={() => setSelectedTransactionId(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)',
+              width: '90%', maxWidth: '450px', maxHeight: '80vh', overflowY: 'auto',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid var(--border-color)', paddingBottom: '12px' }}>
+              <h2 style={{ margin: 0, fontSize: '20px' }}>
+                Detail Struk #{selectedTransactionId.split('-')[0]}
+              </h2>
+              <button 
+                onClick={() => setSelectedTransactionId(null)}
+                style={{ background: 'transparent', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            {loadingItems ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Memuat detail...</div>
+            ) : transactionItems.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Detail tidak ditemukan</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {transactionItems.map((item, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-color)', paddingBottom: '12px' }}>
+                    <div>
+                      <div style={{ fontWeight: 'bold' }}>{item.product_name}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{item.quantity}x @ Rp {(item.price / item.quantity).toLocaleString('id-ID')}</div>
+                    </div>
+                    <div style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
+                      Rp {item.price.toLocaleString('id-ID')}
+                    </div>
+                  </div>
+                ))}
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', paddingTop: '12px', borderTop: '2px solid var(--border-color)', fontWeight: 'bold', fontSize: '18px' }}>
+                  <span>Total</span>
+                  <span style={{ color: 'var(--primary)' }}>
+                    Rp {transactionItems.reduce((sum, item) => sum + item.price, 0).toLocaleString('id-ID')}
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            <button 
+              onClick={() => setSelectedTransactionId(null)}
+              className="btn btn-primary"
+              style={{ width: '100%', marginTop: '24px' }}
+            >
+              Tutup
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -52,7 +52,26 @@ export default function POSPage() {
       
       setLoading(false);
     };
+
     fetchData();
+
+    // Setup Realtime Subscriptions
+    const channel = supabase
+      .channel('pos-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'toppings' }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchData = async () => {
@@ -216,6 +235,28 @@ export default function POSPage() {
         .insert(itemsToInsert);
 
       if (itemsError) throw itemsError;
+
+      // --- AUTO-DEDUCT INVENTORY (Opsi A) ---
+      const deductionMap: Record<string, number> = {};
+      cart.forEach(item => {
+        deductionMap[item.name] = (deductionMap[item.name] || 0) + item.qty;
+        item.toppings.forEach(t => {
+           deductionMap[t.name] = (deductionMap[t.name] || 0) + item.qty;
+        });
+      });
+
+      const ObjectKeys = Object.keys(deductionMap);
+      if (ObjectKeys.length > 0) {
+        const { data: invData } = await supabase.from('inventory').select('id, name, quantity').in('name', ObjectKeys);
+        if (invData && invData.length > 0) {
+          const updatePromises = invData.map(invItem => {
+            const deductQty = deductionMap[invItem.name];
+            return supabase.from('inventory').update({ quantity: invItem.quantity - deductQty }).eq('id', invItem.id);
+          });
+          await Promise.all(updatePromises);
+        }
+      }
+      // ---------------------------------------
 
       alert(`Transaksi Berhasil disimpan! Total: Rp ${total.toLocaleString('id-ID')} via ${paymentMethod}`);
       setCart([]); 

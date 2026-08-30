@@ -69,6 +69,20 @@ export default function ReportsPage() {
 
   useEffect(() => {
     fetchTransactions();
+
+    const channel = supabase
+      .channel('reports-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
+        fetchTransactions();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => {
+        fetchTransactions();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedYear]);
 
   // Filter HANYA untuk bulan dan tahun yang dipilih
@@ -124,14 +138,292 @@ export default function ReportsPage() {
 
   const chartData = processDailyData();
 
+  const handleDownloadReport = () => {
+    const reportHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Rekapan Keuangan - ${MONTHS[selectedMonth]} ${selectedYear}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+            @page { size: A4; margin: 0; }
+            body { 
+              font-family: 'Inter', sans-serif; 
+              color: #1e293b; 
+              line-height: 1.6; 
+              background: #f8fafc;
+              margin: 0;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .page-container {
+              max-width: 210mm;
+              margin: 0 auto;
+              background: #ffffff;
+              min-height: 297mm;
+              box-sizing: border-box;
+            }
+            
+            /* Banner Header */
+            .header-banner {
+              background: linear-gradient(135deg, #FF7E5F 0%, #FEB47B 100%);
+              padding: 40px;
+              color: white;
+              border-radius: 0 0 30px 30px;
+              margin-bottom: 40px;
+              box-shadow: 0 10px 25px rgba(255, 126, 95, 0.2);
+            }
+            .header-banner h1 {
+              font-family: 'Outfit', sans-serif;
+              font-size: 42px;
+              font-weight: 800;
+              margin: 0;
+              letter-spacing: -1px;
+            }
+            .header-banner p {
+              font-size: 16px;
+              margin: 10px 0 0 0;
+              opacity: 0.9;
+              font-weight: 500;
+            }
+            .header-banner .badge {
+              display: inline-block;
+              background: rgba(255,255,255,0.2);
+              padding: 6px 16px;
+              border-radius: 20px;
+              font-size: 14px;
+              font-weight: 600;
+              margin-top: 16px;
+              backdrop-filter: blur(4px);
+            }
+
+            .content-wrapper {
+              padding: 0 40px;
+            }
+            
+            /* Summary Cards */
+            .summary-grid { 
+              display: grid; 
+              grid-template-columns: repeat(3, 1fr); 
+              gap: 24px; 
+              margin-bottom: 40px; 
+            }
+            .summary-card { 
+              padding: 24px; 
+              border-radius: 20px; 
+              background: #ffffff; 
+              border: 1px solid #e2e8f0;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+              position: relative;
+              overflow: hidden;
+            }
+            .summary-card::before {
+              content: '';
+              position: absolute;
+              top: 0; left: 0; right: 0; height: 4px;
+              background: #e2e8f0;
+            }
+            .summary-card.card-blue::before { background: #3b82f6; }
+            .summary-card.card-red::before { background: #ef4444; }
+            .summary-card.card-green {
+              background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+              color: white;
+              border: none;
+              box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
+            }
+            .summary-card.card-green::before { display: none; }
+            
+            .summary-card h3 { 
+              font-family: 'Outfit', sans-serif;
+              margin: 0 0 8px 0; 
+              font-size: 14px; 
+              color: #64748b; 
+              text-transform: uppercase; 
+              letter-spacing: 1px; 
+            }
+            .summary-card.card-green h3 { color: rgba(255,255,255,0.8); }
+            
+            .summary-card .val { 
+              font-family: 'Outfit', sans-serif;
+              font-size: 28px; 
+              font-weight: 700; 
+            }
+            .text-blue { color: #3b82f6; }
+            .text-danger { color: #ef4444; }
+            
+            /* Table Styling */
+            .section-title { 
+              font-family: 'Outfit', sans-serif;
+              font-size: 22px; 
+              font-weight: 700; 
+              margin-bottom: 20px; 
+              color: #0f172a; 
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            }
+            .section-title::before {
+              content: '';
+              display: inline-block;
+              width: 12px;
+              height: 12px;
+              border-radius: 50%;
+              background: #FF7E5F;
+            }
+            
+            table { 
+              width: 100%; 
+              border-collapse: separate; 
+              border-spacing: 0;
+              margin-bottom: 40px; 
+              font-size: 14px; 
+              border-radius: 16px;
+              overflow: hidden;
+              box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+              border: 1px solid #f1f5f9;
+            }
+            th, td { 
+              padding: 16px; 
+              text-align: right; 
+              border-bottom: 1px solid #f1f5f9; 
+            }
+            th:first-child, td:first-child { text-align: left; }
+            th { 
+              background: #f8fafc; 
+              font-family: 'Outfit', sans-serif;
+              font-weight: 600; 
+              color: #475569; 
+              font-size: 15px;
+            }
+            tr:last-child td { border-bottom: none; }
+            
+            /* Footer */
+            .footer-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 20px;
+              margin-bottom: 40px;
+            }
+            .payment-card {
+              background: #f8fafc;
+              padding: 20px;
+              border-radius: 16px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border: 1px dashed #cbd5e1;
+            }
+            .payment-card h4 {
+              margin: 0;
+              font-family: 'Outfit', sans-serif;
+              font-size: 16px;
+              color: #475569;
+            }
+            .payment-card .val {
+              font-size: 20px;
+              font-weight: 700;
+              color: #0f172a;
+            }
+
+            .footer-note { 
+              text-align: center; 
+              margin-top: 60px; 
+              padding-top: 30px; 
+              border-top: 1px dashed #e2e8f0; 
+              font-size: 13px; 
+              color: #94a3b8; 
+            }
+          </style>
+        </head>
+        <body>
+          <div class="page-container">
+            <div class="header-banner">
+              <h1>Kebab Suuy</h1>
+              <p>Laporan Rekapitulasi Keuangan</p>
+              <div class="badge">Periode: ${MONTHS[selectedMonth]} ${selectedYear}</div>
+            </div>
+
+            <div class="content-wrapper">
+              <div class="summary-grid">
+                <div class="summary-card card-blue">
+                  <h3>Pendapatan Kotor</h3>
+                  <div class="val text-blue">Rp ${totalGrossRevenue.toLocaleString('id-ID')}</div>
+                </div>
+                <div class="summary-card card-red">
+                  <h3>Pengeluaran Kas</h3>
+                  <div class="val text-danger">- Rp ${totalExpense.toLocaleString('id-ID')}</div>
+                </div>
+                <div class="summary-card card-green">
+                  <h3>Laba Bersih (Net)</h3>
+                  <div class="val">Rp ${totalNetRevenue.toLocaleString('id-ID')}</div>
+                </div>
+              </div>
+
+              <div class="section-title">Rincian Transaksi Harian</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tanggal</th>
+                    <th>Pemasukan</th>
+                    <th>Pengeluaran</th>
+                    <th>Bersih Harian</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${chartData.filter(d => d.Pendapatan > 0 || d.Pengeluaran > 0).map(d => `
+                    <tr>
+                      <td style="font-weight: 500; color: #334155;">${d.name}</td>
+                      <td style="color: #3b82f6; font-weight: 500;">Rp ${d.Pendapatan.toLocaleString('id-ID')}</td>
+                      <td style="color: #ef4444; font-weight: 500;">Rp ${d.Pengeluaran.toLocaleString('id-ID')}</td>
+                      <td style="color: #10b981; font-weight: 600;">Rp ${d.Bersih.toLocaleString('id-ID')}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+
+              <div class="section-title">Metode Pembayaran</div>
+              <div class="footer-grid">
+                <div class="payment-card">
+                  <h4>💵 Uang Tunai</h4>
+                  <div class="val">${cashCount} Trx</div>
+                </div>
+                <div class="payment-card">
+                  <h4>📱 QRIS</h4>
+                  <div class="val">${qrisCount} Trx</div>
+                </div>
+              </div>
+
+              <div class="footer-note">
+                Dicetak pada: ${new Date().toLocaleString('id-ID')} <br>
+                Dokumen ini dihasilkan secara otomatis oleh <strong>Sistem Kasir Pintar Kebab Suuy</strong>
+              </div>
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([reportHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="main-area" style={{ flex: 1, padding: '24px' }}>
-      <div className="header">
+      <div className="header" style={{ position: 'relative' }}>
         <div>
           <h1>Laporan Keuangan</h1>
           <p style={{ color: 'var(--text-muted)' }}>Analisis penjualan Kasir Kebab Suuy</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <select 
             className="btn btn-outline"
             value={selectedMonth}
@@ -152,46 +444,42 @@ export default function ReportsPage() {
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-          <button className="btn btn-primary" onClick={fetchTransactions}>🔄 Refresh</button>
+          <button className="btn btn-primary" onClick={handleDownloadReport} style={{ background: '#10b981', border: 'none' }}>📄 Download Rekapan</button>
         </div>
       </div>
 
-      {loading ? (
-        <p>Memuat data laporan...</p>
-      ) : (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-            <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-              <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Pendapatan Kotor (Omzet)</h3>
-              <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--primary)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '24px' }}>
+            <div style={{ background: 'var(--surface)', padding: '10px', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
+              <h3 style={{ color: 'var(--text-muted)', margin: '0 0 4px 0', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Omzet</h3>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--primary)' }}>
                 Rp {totalGrossRevenue.toLocaleString('id-ID')}
               </div>
             </div>
 
-            <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-              <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Total Pengeluaran Kasir</h3>
-              <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--danger)' }}>
+            <div style={{ background: 'var(--surface)', padding: '10px', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
+              <h3 style={{ color: 'var(--text-muted)', margin: '0 0 4px 0', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pengeluaran</h3>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--danger)' }}>
                 - Rp {totalExpense.toLocaleString('id-ID')}
               </div>
             </div>
 
-            <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'pointer', border: '2px solid var(--primary)' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-              <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Pendapatan Bersih (Net Cash)</h3>
-              <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--text-main)' }}>
+            <div style={{ background: 'var(--surface)', padding: '10px', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--primary)' }}>
+              <h3 style={{ color: 'var(--text-muted)', margin: '0 0 4px 0', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Net Cash</h3>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--text-main)' }}>
                 Rp {totalNetRevenue.toLocaleString('id-ID')}
               </div>
             </div>
             
-            <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-              <h3 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '14px' }}>Metode Pembayaran (Bulan Ini)</h3>
-              <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
-                <div style={{ flex: 1, background: '#f8fafc', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
-                  <span style={{ fontSize: '20px' }}>💵</span>
-                  <div style={{ fontWeight: 'bold', marginTop: '4px' }}>{cashCount}</div>
+            <div style={{ background: 'var(--surface)', padding: '10px', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
+              <h3 style={{ color: 'var(--text-muted)', margin: '0 0 4px 0', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Trx (Bulan Ini)</h3>
+              <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                <div style={{ flex: 1, background: 'var(--bg-color)', padding: '4px', borderRadius: '4px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '12px' }}>💵</span>
+                  <span style={{ fontWeight: 'bold', fontSize: '12px' }}>{cashCount}</span>
                 </div>
-                <div style={{ flex: 1, background: '#f8fafc', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
-                  <span style={{ fontSize: '20px' }}>📱</span>
-                  <div style={{ fontWeight: 'bold', marginTop: '4px' }}>{qrisCount}</div>
+                <div style={{ flex: 1, background: 'var(--bg-color)', padding: '4px', borderRadius: '4px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '12px' }}>📱</span>
+                  <span style={{ fontWeight: 'bold', fontSize: '12px' }}>{qrisCount}</span>
                 </div>
               </div>
             </div>
@@ -233,9 +521,6 @@ export default function ReportsPage() {
             </div>
           </div>
 
-
-        </>
-      )}
     </div>
   );
 }
