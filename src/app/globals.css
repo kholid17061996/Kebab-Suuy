@@ -446,3 +446,60 @@ body {
   justify-content: center;
   border: 2px solid white;
 }
+
+/* -------------------------------------
+   Table Responsiveness (Admin Menu)
+   ------------------------------------- */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.btn-icon {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+
+  .btn-icon {
+    display: none; /* User prefers small text over emojis */
+  }
+
+  .btn-text {
+    display: inline;
+  }
+
+  .table-responsive table th, 
+  .table-responsive table td {
+    padding: 8px 4px !important;
+    font-size: 11px;
+    word-break: break-word;
+  }
+
+  .table-responsive table td:first-child {
+    font-size: 18px !important; /* Smaller emoji for mobile */
+    width: 40px !important;
+    padding: 8px 2px !important;
+  }
+
+  .table-responsive .btn {
+    padding: 6px 8px !important;
+    font-size: 9px !important;
+    white-space: nowrap;
+    min-width: auto;
+  }
+  
+  .settings-nav {
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+  
+  .settings-nav .btn {
+    flex: 1 1 30%;
+    font-size: 11px !important;
+    padding: 8px !important;
+  }
+}

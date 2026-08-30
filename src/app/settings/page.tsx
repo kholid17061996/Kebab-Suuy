@@ -202,7 +202,7 @@ export default function MenuManagementPage() {
       </div>
       
       {/* Navigasi Tab */}
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', borderBottom: '2px solid var(--border-color)', paddingBottom: '16px' }}>
+      <div className="settings-nav" style={{ display: 'flex', gap: '16px', marginBottom: '24px', borderBottom: '2px solid var(--border-color)', paddingBottom: '16px' }}>
         <button 
           onClick={() => setActiveTab('menu')}
           className={`btn ${activeTab === 'menu' ? 'btn-primary' : 'btn-outline'}`}
@@ -230,7 +230,7 @@ export default function MenuManagementPage() {
         products.length === 0 ? (
           <p style={{ color: 'var(--text-muted)' }}>Belum ada produk di database.</p>
         ) : (
-          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+          <div className="table-responsive" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', overflowX: 'auto', boxShadow: 'var(--shadow-sm)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: 'var(--bg-color)', borderBottom: '1px solid var(--border-color)' }}>
@@ -250,8 +250,8 @@ export default function MenuManagementPage() {
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button onClick={() => handleOpenProductModal(p)} className="btn btn-outline" style={{ padding: '6px 12px' }}>Edit</button>
-                        <button onClick={() => handleDeleteProduct(p.id)} className="btn" style={{ padding: '6px 12px', background: 'var(--danger)', color: 'white' }}>Hapus</button>
+                        <button onClick={() => handleOpenProductModal(p)} className="btn btn-outline" style={{ padding: '6px 12px' }}><span className="btn-icon">✏️</span><span className="btn-text">Edit</span></button>
+                        <button onClick={() => handleDeleteProduct(p.id)} className="btn" style={{ padding: '6px 12px', background: 'var(--danger)', color: 'white' }}><span className="btn-icon">🗑️</span><span className="btn-text">Hapus</span></button>
                       </div>
                     </td>
                   </tr>
@@ -265,7 +265,7 @@ export default function MenuManagementPage() {
         toppings.length === 0 ? (
           <p style={{ color: 'var(--text-muted)' }}>Belum ada topping di database.</p>
         ) : (
-          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+          <div className="table-responsive" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', overflowX: 'auto', boxShadow: 'var(--shadow-sm)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: 'var(--bg-color)', borderBottom: '1px solid var(--border-color)' }}>
@@ -291,8 +291,8 @@ export default function MenuManagementPage() {
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button onClick={() => handleOpenToppingModal(t)} className="btn btn-outline" style={{ padding: '6px 12px' }}>Edit</button>
-                        <button onClick={() => handleDeleteTopping(t.id)} className="btn" style={{ padding: '6px 12px', background: 'var(--danger)', color: 'white' }}>Hapus</button>
+                        <button onClick={() => handleOpenToppingModal(t)} className="btn btn-outline" style={{ padding: '6px 12px' }}><span className="btn-icon">✏️</span><span className="btn-text">Edit</span></button>
+                        <button onClick={() => handleDeleteTopping(t.id)} className="btn" style={{ padding: '6px 12px', background: 'var(--danger)', color: 'white' }}><span className="btn-icon">🗑️</span><span className="btn-text">Hapus</span></button>
                       </div>
                     </td>
                   </tr>
@@ -311,10 +311,11 @@ export default function MenuManagementPage() {
             </button>
           </div>
         ) : (
-          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+          <div className="table-responsive" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', overflowX: 'auto', boxShadow: 'var(--shadow-sm)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: 'var(--bg-color)', borderBottom: '1px solid var(--border-color)' }}>
+                  <th style={{ padding: '16px', width: '60px' }}>Ikon</th>
                   <th style={{ padding: '16px' }}>Nama Kategori</th>
                   <th style={{ padding: '16px', textAlign: 'right' }}>Aksi</th>
                 </tr>
@@ -322,11 +323,12 @@ export default function MenuManagementPage() {
               <tbody>
                 {categories.map(c => (
                   <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '16px', fontSize: '28px', textAlign: 'center' }}>📂</td>
                     <td style={{ padding: '16px', fontWeight: 500 }}>{c.name}</td>
                     <td style={{ padding: '16px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button onClick={() => handleOpenCategoryModal(c)} className="btn btn-outline" style={{ padding: '6px 12px' }}>Edit</button>
-                        <button onClick={() => handleDeleteCategory(c.id)} className="btn" style={{ padding: '6px 12px', background: 'var(--danger)', color: 'white' }}>Hapus</button>
+                        <button onClick={() => handleOpenCategoryModal(c)} className="btn btn-outline" style={{ padding: '6px 12px' }}><span className="btn-icon">✏️</span><span className="btn-text">Edit</span></button>
+                        <button onClick={() => handleDeleteCategory(c.id)} className="btn" style={{ padding: '6px 12px', background: 'var(--danger)', color: 'white' }}><span className="btn-icon">🗑️</span><span className="btn-text">Hapus</span></button>
                       </div>
                     </td>
                   </tr>
