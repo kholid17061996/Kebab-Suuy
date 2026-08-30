@@ -382,7 +382,19 @@ export default function MenuManagementPage() {
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Ikon / Emoji</label>
-                <input type="text" value={editingProduct.image_url} onChange={e => setEditingProduct({...editingProduct, image_url: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }} />
+                <input type="text" value={editingProduct.image_url || ''} onChange={e => setEditingProduct({...editingProduct, image_url: e.target.value})} placeholder="Ketik atau pilih dari daftar..." style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '8px' }} />
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', maxHeight: '100px', overflowY: 'auto', padding: '4px' }}>
+                  {['🌯', '🥙', '🌮', '🍔', '🌭', '🍟', '🍕', '🥪', '🥩', '🍗', '🍖', '🥓', '🍜', '🍝', '🍚', '🥘', '🍲', '🥤', '🧋', '☕', '🍵', '🧊', '🍹', '🍺', '🥛', '🌶️', '🧀', '🧅', '🍅', '🍄', '🥐', '🍞'].map(emoji => (
+                    <button 
+                      type="button" 
+                      key={emoji} 
+                      onClick={() => setEditingProduct({...editingProduct, image_url: emoji})} 
+                      style={{ background: editingProduct.image_url === emoji ? 'var(--primary)' : 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', fontSize: '20px', transition: '0.2s' }}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
               
               <div style={{ display: 'flex', gap: '12px', marginTop: '8px', justifyContent: 'flex-end' }}>
