@@ -16,6 +16,7 @@ type Topping = {
   name: string;
   price: number;
   category_id?: string;
+  image_url?: string;
 };
 
 type Category = {
@@ -123,7 +124,7 @@ export default function MenuManagementPage() {
 
   // --- Topping Actions ---
   const handleOpenToppingModal = (topping: Topping | null = null) => {
-    setEditingTopping(topping || { name: '', price: 0, category_id: categories[0]?.id || '' });
+    setEditingTopping(topping || { name: '', price: 0, category_id: categories[0]?.id || '', image_url: '✨' });
     setIsToppingModalOpen(true);
   };
 
@@ -136,7 +137,8 @@ export default function MenuManagementPage() {
       const { error } = await supabase.from('toppings').update({
         name: editingTopping.name,
         price: editingTopping.price,
-        category_id: editingTopping.category_id || null
+        category_id: editingTopping.category_id || null,
+        image_url: editingTopping.image_url
       }).eq('id', editingTopping.id);
       
       if (error) alert('Gagal update topping: ' + error.message);
@@ -145,7 +147,8 @@ export default function MenuManagementPage() {
       const { error } = await supabase.from('toppings').insert([{
         name: editingTopping.name,
         price: editingTopping.price,
-        category_id: editingTopping.category_id || null
+        category_id: editingTopping.category_id || null,
+        image_url: editingTopping.image_url
       }]);
       
       if (error) alert('Gagal tambah topping: ' + error.message);
@@ -296,7 +299,7 @@ export default function MenuManagementPage() {
               <tbody>
                 {toppings.map(t => (
                   <tr key={t.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '16px', fontSize: '28px', textAlign: 'center' }}>✨</td>
+                    <td style={{ padding: '16px', fontSize: '28px', textAlign: 'center' }}>{t.image_url || '✨'}</td>
                     <td style={{ padding: '16px', fontWeight: 500 }}>{t.name}</td>
                     <td style={{ padding: '16px' }}>
                       <span style={{ background: 'var(--bg-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
@@ -430,6 +433,22 @@ export default function MenuManagementPage() {
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <small style={{ color: 'var(--text-muted)' }}>Pilih Semua Kategori jika topping ini berlaku untuk semua menu.</small>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Ikon / Emoji</label>
+                <input type="text" value={editingTopping.image_url || ''} onChange={e => setEditingTopping({...editingTopping, image_url: e.target.value})} placeholder="Ketik atau pilih dari daftar..." style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '8px' }} />
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', maxHeight: '100px', overflowY: 'auto', padding: '4px' }}>
+                  {['🧀', '🍳', '🌭', '🥓', '🌶️', '🥩', '🧅', '🍅', '🍄', '🌿', '✨'].map(emoji => (
+                    <button 
+                      type="button" 
+                      key={emoji} 
+                      onClick={() => setEditingTopping({...editingTopping, image_url: emoji})} 
+                      style={{ background: editingTopping.image_url === emoji ? 'var(--primary)' : 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', fontSize: '20px', transition: '0.2s' }}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
               
               <div style={{ display: 'flex', gap: '12px', marginTop: '8px', justifyContent: 'flex-end' }}>
