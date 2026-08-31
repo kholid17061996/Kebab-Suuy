@@ -34,6 +34,7 @@ export default function ReportsPage() {
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedCashier, setSelectedCashier] = useState<string>('Semua Kasir');
+  const [kasirList, setKasirList] = useState<string[]>([]);
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -71,6 +72,13 @@ export default function ReportsPage() {
   };
 
   useEffect(() => {
+    const fetchKasirList = async () => {
+      const { data } = await supabase.from('app_users').select('username').eq('role', 'kasir');
+      if (data) {
+        setKasirList(data.map(k => k.username));
+      }
+    };
+    fetchKasirList();
     fetchTransactions();
 
     const channel = supabase
@@ -102,11 +110,6 @@ export default function ReportsPage() {
     const matchCashier = selectedCashier === 'Semua Kasir' || e.cashier_name === selectedCashier;
     return matchDate && matchCashier;
   });
-
-  const cashiers = Array.from(new Set([
-    ...transactions.map(t => t.cashier_name).filter(Boolean),
-    ...expenses.map(e => e.cashier_name).filter(Boolean)
-  ])) as string[];
   
   const totalGrossRevenue = monthlyTransactions.reduce((sum, t) => sum + t.total_amount, 0);
   const totalExpense = monthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -443,7 +446,7 @@ export default function ReportsPage() {
             style={{ appearance: 'auto', paddingRight: '32px' }}
           >
             <option value="Semua Kasir">Semua Kasir</option>
-            {cashiers.map((c, i) => (
+            {kasirList.map((c, i) => (
               <option key={i} value={c}>{c}</option>
             ))}
           </select>
