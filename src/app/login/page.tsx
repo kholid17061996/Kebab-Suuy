@@ -1,34 +1,55 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [role, setRole] = useState<'admin' | 'kasir'>('kasir');
+  const [kasirList, setKasirList] = useState<{username: string}[]>([]);
+  const [selectedKasir, setSelectedKasir] = useState('');
+  
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  useEffect(() => {
+    const fetchKasir = async () => {
+      const { data } = await supabase.from('app_users').select('username').eq('role', 'kasir');
+      if (data && data.length > 0) {
+        setKasirList(data);
+        setSelectedKasir(data[0].username);
+      }
+    };
+    fetchKasir();
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
+    const activeUsername = role === 'admin' ? 'admin' : selectedKasir;
+    if (!activeUsername) {
+      setError('Pilih kasir terlebih dahulu');
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data, error: dbError } = await supabase
         .from('app_users')
         .select('password, role')
-        .eq('username', username.toLowerCase())
+        .eq('username', activeUsername.toLowerCase())
         .single();
         
       if (dbError) {
         console.error('Supabase error:', dbError);
         // Fallback sementara jika tabel app_users belum diperbarui
-        if (password === '1811' && (username.toLowerCase() === 'admin' || username.toLowerCase() === 'kasir')) {
-          document.cookie = `pos_role=${username.toLowerCase()}; path=/; max-age=86400`;
-          document.cookie = `pos_user=${username.toLowerCase()}; path=/; max-age=86400`;
+        if (password === '1811' && (activeUsername === 'admin' || activeUsername === 'kasir')) {
+          document.cookie = `pos_role=${role}; path=/; max-age=86400`;
+          document.cookie = `pos_user=${activeUsername}; path=/; max-age=86400`;
           router.push('/');
           router.refresh();
         } else {
@@ -36,11 +57,11 @@ export default function LoginPage() {
         }
       } else if (data && data.password === password) {
         document.cookie = `pos_role=${data.role}; path=/; max-age=86400`;
-        document.cookie = `pos_user=${username.toLowerCase()}; path=/; max-age=86400`;
+        document.cookie = `pos_user=${activeUsername}; path=/; max-age=86400`;
         router.push('/');
         router.refresh();
       } else {
-        setError('Username atau Password salah!');
+        setError('Password salah!');
       }
     } catch (err) {
       console.error(err);
@@ -58,16 +79,40 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          <div>
-            <input 
-              type="text" 
-              placeholder="Username" 
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              style={{ width: '100%', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '16px', textAlign: 'center', marginBottom: '8px' }}
-              required
-            />
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+            <div 
+              onClick={() => setRole('kasir')}
+              style={{ flex: 1, padding: '12px', border: `2px solid ${role === 'kasir' ? 'var(--primary)' : 'var(--border-color)'}`, borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: '0.2s', fontWeight: role === 'kasir' ? 'bold' : 'normal', color: role === 'kasir' ? 'var(--primary)' : 'var(--text-muted)' }}
+            >
+              👩‍🍳 Kasir
+            </div>
+            <div 
+              onClick={() => setRole('admin')}
+              style={{ flex: 1, padding: '12px', border: `2px solid ${role === 'admin' ? 'var(--primary)' : 'var(--border-color)'}`, borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: '0.2s', fontWeight: role === 'admin' ? 'bold' : 'normal', color: role === 'admin' ? 'var(--primary)' : 'var(--text-muted)' }}
+            >
+              👑 Admin
+            </div>
           </div>
+
+          {role === 'kasir' && kasirList.length > 0 && (
+            <div>
+              <select 
+                value={selectedKasir}
+                onChange={e => setSelectedKasir(e.target.value)}
+                style={{ width: '100%', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '16px', textAlign: 'center', marginBottom: '8px', appearance: 'auto' }}
+              >
+                {kasirList.map(k => (
+                  <option key={k.username} value={k.username}>{k.username}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {role === 'kasir' && kasirList.length === 0 && (
+            <div style={{ color: 'var(--danger)', fontSize: '14px', marginBottom: '8px' }}>
+              Belum ada akun kasir terdaftar.
+            </div>
+          )}
 
           <div>
             <input 
