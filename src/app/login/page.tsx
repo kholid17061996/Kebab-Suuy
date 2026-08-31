@@ -2,22 +2,49 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const [role, setRole] = useState<'admin' | 'kasir'>('kasir');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === '1811') {
-      // Set cookie berlaku selama 1 hari (86400 max-age)
-      document.cookie = `pos_role=${role}; path=/; max-age=86400`;
-      router.push('/');
-      router.refresh(); // Memaksa layout membaca ulang state/cookie
-    } else {
-      setError('Password/PIN salah!');
+    setLoading(true);
+    setError('');
+
+    try {
+      const { data, error: dbError } = await supabase
+        .from('app_users')
+        .select('password')
+        .eq('role', role)
+        .single();
+        
+      if (dbError) {
+        console.error('Supabase error:', dbError);
+        // Fallback sementara jika tabel app_users belum dibuat di database
+        if (password === '1811') {
+          document.cookie = `pos_role=${role}; path=/; max-age=86400`;
+          router.push('/');
+          router.refresh();
+        } else {
+          setError('Password/PIN salah! (Atau tabel app_users belum dibuat)');
+        }
+      } else if (data && data.password === password) {
+        document.cookie = `pos_role=${role}; path=/; max-age=86400`;
+        router.push('/');
+        router.refresh();
+      } else {
+        setError('Password/PIN salah!');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Terjadi kesalahan sistem.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -57,8 +84,8 @@ export default function LoginPage() {
 
           {error && <p style={{ color: 'var(--danger)', fontSize: '14px', margin: '-8px 0' }}>{error}</p>}
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '16px', fontSize: '16px' }}>
-            Masuk ke Aplikasi
+          <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', padding: '16px', fontSize: '16px', opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'Memeriksa...' : 'Masuk ke Aplikasi'}
           </button>
         </form>
       </div>

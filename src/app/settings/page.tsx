@@ -25,7 +25,8 @@ type Category = {
 };
 
 export default function MenuManagementPage() {
-  const [activeTab, setActiveTab] = useState<'menu' | 'topping' | 'kategori'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'topping' | 'kategori' | 'akun'>('menu');
+  const [userRole, setUserRole] = useState('');
   
   const [products, setProducts] = useState<Product[]>([]);
   const [toppings, setToppings] = useState<Topping[]>([]);
@@ -44,6 +45,10 @@ export default function MenuManagementPage() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
 
+  // States for Account settings
+  const [passwordRole, setPasswordRole] = useState('kasir');
+  const [newPassword, setNewPassword] = useState('');
+
   const fetchData = async () => {
     setLoading(true);
     const [prodRes, topRes, catRes] = await Promise.all([
@@ -59,6 +64,12 @@ export default function MenuManagementPage() {
   };
 
   useEffect(() => {
+    // Get role from cookie
+    const roleCookie = document.cookie.split('; ').find(row => row.startsWith('pos_role='));
+    if (roleCookie) {
+      setUserRole(roleCookie.split('=')[1]);
+    }
+
     fetchData();
 
     const channel = supabase
@@ -202,6 +213,26 @@ export default function MenuManagementPage() {
     else fetchData();
   };
 
+  // --- Account Actions ---
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword) return;
+    
+    if (!confirm(`Yakin ingin mengubah password untuk ${passwordRole}?`)) return;
+
+    const { error } = await supabase
+      .from('app_users')
+      .update({ password: newPassword })
+      .eq('role', passwordRole);
+
+    if (error) {
+      alert('Gagal mengubah password: ' + error.message);
+    } else {
+      alert('Password berhasil diubah!');
+      setNewPassword('');
+    }
+  };
+
   return (
     <div className="main-area" style={{ flex: 1, padding: '24px', position: 'relative' }}>
       <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -241,6 +272,14 @@ export default function MenuManagementPage() {
         >
           Daftar Kategori
         </button>
+        {userRole === 'admin' && (
+          <button 
+            onClick={() => setActiveTab('akun')}
+            className={`btn ${activeTab === 'akun' ? 'btn-primary' : 'btn-outline'}`}
+          >
+            Pengaturan Akun
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -321,7 +360,7 @@ export default function MenuManagementPage() {
             </table>
           </div>
         )
-      ) : (
+      ) : activeTab === 'kategori' ? (
         /* TAB: KATEGORI */
         categories.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 0', background: 'var(--surface)', borderRadius: 'var(--radius-lg)' }}>
@@ -357,7 +396,39 @@ export default function MenuManagementPage() {
             </table>
           </div>
         )
-      )}
+      ) : activeTab === 'akun' && userRole === 'admin' ? (
+        /* TAB: PENGATURAN AKUN */
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', padding: '24px', boxShadow: 'var(--shadow-sm)', maxWidth: '500px' }}>
+          <h2 style={{ marginBottom: '16px' }}>Ganti Password</h2>
+          <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Pilih Akun</label>
+              <select 
+                value={passwordRole}
+                onChange={e => setPasswordRole(e.target.value)}
+                style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}
+              >
+                <option value="kasir">Kasir</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Password Baru</label>
+              <input 
+                type="password" 
+                required
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Masukkan password baru"
+                style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }} 
+              />
+            </div>
+            <button type="submit" className="btn btn-primary" style={{ marginTop: '8px' }}>
+              Simpan Password
+            </button>
+          </form>
+        </div>
+      ) : null}
 
       {/* PRODUCT MODAL */}
       {isProductModalOpen && editingProduct && (
