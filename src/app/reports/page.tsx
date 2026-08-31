@@ -433,7 +433,7 @@ export default function ReportsPage() {
       <div className="header" style={{ position: 'relative' }}>
         <div>
           <h1>Laporan Keuangan</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Analisis penjualan Kasir Kebab Suuy</p>
+          <p style={{ color: 'var(--text-muted)' }}>Analisis penjualan: {selectedCashier === 'Semua Kasir' ? 'Semua Kasir' : selectedCashier}</p>
         </div>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <select 
@@ -510,7 +510,7 @@ export default function ReportsPage() {
 
           {/* Grafik Harian Admin */}
           <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', marginBottom: '32px', boxShadow: 'var(--shadow-sm)', width: '100%', overflow: 'hidden' }}>
-            <h3 style={{ marginBottom: '16px' }}>Grafik Pendapatan Harian ({MONTHS[selectedMonth]} {selectedYear})</h3>
+            <h3 style={{ marginBottom: '16px' }}>Grafik Pendapatan Harian ({selectedCashier} - {MONTHS[selectedMonth]} {selectedYear})</h3>
             <div style={{ height: '350px', width: '100%', minWidth: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
