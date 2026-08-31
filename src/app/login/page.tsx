@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
-  const [role, setRole] = useState<'admin' | 'kasir'>('kasir');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,26 +19,28 @@ export default function LoginPage() {
     try {
       const { data, error: dbError } = await supabase
         .from('app_users')
-        .select('password')
-        .eq('role', role)
+        .select('password, role')
+        .eq('username', username.toLowerCase())
         .single();
         
       if (dbError) {
         console.error('Supabase error:', dbError);
-        // Fallback sementara jika tabel app_users belum dibuat di database
-        if (password === '1811') {
-          document.cookie = `pos_role=${role}; path=/; max-age=86400`;
+        // Fallback sementara jika tabel app_users belum diperbarui
+        if (password === '1811' && (username.toLowerCase() === 'admin' || username.toLowerCase() === 'kasir')) {
+          document.cookie = `pos_role=${username.toLowerCase()}; path=/; max-age=86400`;
+          document.cookie = `pos_user=${username.toLowerCase()}; path=/; max-age=86400`;
           router.push('/');
           router.refresh();
         } else {
-          setError('Password/PIN salah! (Atau tabel app_users belum dibuat)');
+          setError('Username atau Password salah!');
         }
       } else if (data && data.password === password) {
-        document.cookie = `pos_role=${role}; path=/; max-age=86400`;
+        document.cookie = `pos_role=${data.role}; path=/; max-age=86400`;
+        document.cookie = `pos_user=${username.toLowerCase()}; path=/; max-age=86400`;
         router.push('/');
         router.refresh();
       } else {
-        setError('Password/PIN salah!');
+        setError('Username atau Password salah!');
       }
     } catch (err) {
       console.error(err);
@@ -56,19 +58,15 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-            <div 
-              onClick={() => setRole('kasir')}
-              style={{ flex: 1, padding: '12px', border: `2px solid ${role === 'kasir' ? 'var(--primary)' : 'var(--border-color)'}`, borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: '0.2s', fontWeight: role === 'kasir' ? 'bold' : 'normal', color: role === 'kasir' ? 'var(--primary)' : 'var(--text-muted)' }}
-            >
-              👩‍🍳 Kasir
-            </div>
-            <div 
-              onClick={() => setRole('admin')}
-              style={{ flex: 1, padding: '12px', border: `2px solid ${role === 'admin' ? 'var(--primary)' : 'var(--border-color)'}`, borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: '0.2s', fontWeight: role === 'admin' ? 'bold' : 'normal', color: role === 'admin' ? 'var(--primary)' : 'var(--text-muted)' }}
-            >
-              👑 Admin
-            </div>
+          <div>
+            <input 
+              type="text" 
+              placeholder="Username" 
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              style={{ width: '100%', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '16px', textAlign: 'center', marginBottom: '8px' }}
+              required
+            />
           </div>
 
           <div>
@@ -77,7 +75,7 @@ export default function LoginPage() {
               placeholder="Masukkan PIN / Password" 
               value={password}
               onChange={e => setPassword(e.target.value)}
-              style={{ width: '100%', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '18px', textAlign: 'center', letterSpacing: '4px' }}
+              style={{ width: '100%', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '16px', textAlign: 'center', letterSpacing: '4px' }}
               required
             />
           </div>

@@ -23,6 +23,7 @@ export default function POSPage() {
   const [availableToppings, setAvailableToppings] = useState<Topping[]>([]);
   const [activeCatId, setActiveCatId] = useState<string>('Semua');
   const [loading, setLoading] = useState(true);
+  const [cashierName, setCashierName] = useState('Kasir Utama');
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -39,6 +40,11 @@ export default function POSPage() {
   const [expenseNote, setExpenseNote] = useState<string>('');
 
   useEffect(() => {
+    const userCookie = document.cookie.split('; ').find(row => row.startsWith('pos_user='));
+    if (userCookie) {
+      setCashierName(userCookie.split('=')[1]);
+    }
+
     const fetchData = async () => {
       const [catRes, prodRes, topRes] = await Promise.all([
         supabase.from('categories').select('*').order('name'),
@@ -99,6 +105,7 @@ export default function POSPage() {
       const { error } = await supabase.from('expenses').insert([{
         amount: expenseAmount,
         note: expenseNote,
+        cashier_name: cashierName
       }]);
       if (error) throw error;
       alert('Pengeluaran berhasil dicatat!');
@@ -213,7 +220,7 @@ export default function POSPage() {
     try {
       const { data: trxData, error: trxError } = await supabase
         .from('transactions')
-        .insert([{ total_amount: total, payment_method: paymentMethod }])
+        .insert([{ total_amount: total, payment_method: paymentMethod, cashier_name: cashierName }])
         .select()
         .single();
 

@@ -46,20 +46,23 @@ export default function MenuManagementPage() {
   const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
 
   // States for Account settings
-  const [passwordRole, setPasswordRole] = useState('kasir');
-  const [newPassword, setNewPassword] = useState('');
+  const [appUsers, setAppUsers] = useState<any[]>([]);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
 
   const fetchData = async () => {
     setLoading(true);
-    const [prodRes, topRes, catRes] = await Promise.all([
+    const [prodRes, topRes, catRes, userRes] = await Promise.all([
       supabase.from('products').select('*').order('name'),
       supabase.from('toppings').select('*').order('name'),
-      supabase.from('categories').select('*').order('name')
+      supabase.from('categories').select('*').order('name'),
+      supabase.from('app_users').select('*').order('username')
     ]);
     
     if (prodRes.data) setProducts(prodRes.data);
     if (topRes.data) setToppings(topRes.data);
     if (catRes.data) setCategories(catRes.data);
+    if (userRes.data) setAppUsers(userRes.data);
     setLoading(false);
   };
 
@@ -81,6 +84,9 @@ export default function MenuManagementPage() {
         fetchData();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'toppings' }, () => {
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_users' }, () => {
         fetchData();
       })
       .subscribe();
@@ -214,23 +220,40 @@ export default function MenuManagementPage() {
   };
 
   // --- Account Actions ---
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const handleOpenUserModal = (user: any = null) => {
+    setEditingUser(user || { username: '', password: '', role: 'kasir', isNew: true });
+    setIsUserModalOpen(true);
+  };
+
+  const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPassword) return;
+    if (!editingUser) return;
     
-    if (!confirm(`Yakin ingin mengubah password untuk ${passwordRole}?`)) return;
-
-    const { error } = await supabase
-      .from('app_users')
-      .update({ password: newPassword })
-      .eq('role', passwordRole);
-
-    if (error) {
-      alert('Gagal mengubah password: ' + error.message);
+    if (editingUser.isNew) {
+      const { error } = await supabase.from('app_users').insert([{
+        username: editingUser.username.toLowerCase(),
+        password: editingUser.password,
+        role: editingUser.role
+      }]);
+      if (error) alert('Gagal tambah user: ' + error.message);
     } else {
-      alert('Password berhasil diubah!');
-      setNewPassword('');
+      const { error } = await supabase.from('app_users').update({
+        password: editingUser.password,
+        role: editingUser.role
+      }).eq('username', editingUser.username);
+      if (error) alert('Gagal update user: ' + error.message);
     }
+    
+    setIsUserModalOpen(false);
+    fetchData();
+  };
+
+  const handleDeleteUser = async (username: string) => {
+    if (username === 'admin') return alert('Admin utama tidak bisa dihapus!');
+    if (!confirm('Yakin ingin menghapus user ' + username + '?')) return;
+    const { error } = await supabase.from('app_users').delete().eq('username', username);
+    if (error) alert('Gagal hapus user: ' + error.message);
+    else fetchData();
   };
 
   return (
@@ -398,37 +421,78 @@ export default function MenuManagementPage() {
         )
       ) : activeTab === 'akun' && userRole === 'admin' ? (
         /* TAB: PENGATURAN AKUN */
-        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', padding: '24px', boxShadow: 'var(--shadow-sm)', maxWidth: '500px' }}>
-          <h2 style={{ marginBottom: '16px' }}>Ganti Password</h2>
-          <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Pilih Akun</label>
-              <select 
-                value={passwordRole}
-                onChange={e => setPasswordRole(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}
-              >
-                <option value="kasir">Kasir</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Password Baru</label>
-              <input 
-                type="password" 
-                required
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                placeholder="Masukkan password baru"
-                style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }} 
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ marginTop: '8px' }}>
-              Simpan Password
-            </button>
-          </form>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', padding: '24px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2>Daftar Kasir & Admin</h2>
+            <button onClick={() => handleOpenUserModal()} className="btn btn-primary">+ Tambah Akun</button>
+          </div>
+          
+          <div className="table-responsive" style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-color)', borderBottom: '1px solid var(--border-color)' }}>
+                  <th style={{ padding: '16px' }}>Username</th>
+                  <th style={{ padding: '16px' }}>Role</th>
+                  <th style={{ padding: '16px' }}>Password</th>
+                  <th style={{ padding: '16px', textAlign: 'right' }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {appUsers.map(u => (
+                  <tr key={u.username} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '16px', fontWeight: 500 }}>{u.username}</td>
+                    <td style={{ padding: '16px' }}>
+                      <span style={{ background: u.role === 'admin' ? 'var(--primary)' : 'var(--bg-color)', color: u.role === 'admin' ? 'white' : 'var(--text-main)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                        {u.role.toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ padding: '16px', color: 'var(--text-muted)' }}>••••••••</td>
+                    <td style={{ padding: '16px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button onClick={() => handleOpenUserModal(u)} className="btn btn-outline" style={{ padding: '6px 12px' }}><span className="btn-icon">✏️</span><span className="btn-text">Edit/Ganti Password</span></button>
+                        {u.username !== 'admin' && (
+                          <button onClick={() => handleDeleteUser(u.username)} className="btn" style={{ padding: '6px 12px', background: 'var(--danger)', color: 'white' }}><span className="btn-icon">🗑️</span><span className="btn-text">Hapus</span></button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : null}
+
+      {/* USER MODAL */}
+      {isUserModalOpen && editingUser && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'var(--surface)', padding: '24px', borderRadius: 'var(--radius-lg)', width: '400px', maxWidth: '90%' }}>
+            <h2>{editingUser.isNew ? 'Tambah Akun Baru' : 'Edit Akun: ' + editingUser.username}</h2>
+            <form onSubmit={handleSaveUser} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Username</label>
+                <input required type="text" value={editingUser.username} onChange={e => setEditingUser({...editingUser, username: e.target.value.toLowerCase()})} disabled={!editingUser.isNew} style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: !editingUser.isNew ? 'var(--bg-color)' : 'transparent' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Role</label>
+                <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value})} disabled={editingUser.username === 'admin'} style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  <option value="kasir">Kasir</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>Password</label>
+                <input required type="text" value={editingUser.password} onChange={e => setEditingUser({...editingUser, password: e.target.value})} placeholder="Masukkan password" style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }} />
+              </div>
+              
+              <div style={{ display: 'flex', gap: '12px', marginTop: '8px', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setIsUserModalOpen(false)} className="btn btn-outline">Batal</button>
+                <button type="submit" className="btn btn-primary">Simpan</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* PRODUCT MODAL */}
       {isProductModalOpen && editingProduct && (

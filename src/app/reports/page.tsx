@@ -9,6 +9,7 @@ type Transaction = {
   total_amount: number;
   payment_method: string;
   created_at: string;
+  cashier_name?: string;
 };
 
 type Expense = {
@@ -16,6 +17,7 @@ type Expense = {
   amount: number;
   note: string;
   created_at: string;
+  cashier_name?: string;
 };
 
 const MONTHS = [
@@ -31,6 +33,7 @@ export default function ReportsPage() {
   // Default bulan sesuai device
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedCashier, setSelectedCashier] = useState<string>('Semua Kasir');
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -85,16 +88,25 @@ export default function ReportsPage() {
     };
   }, [selectedYear]);
 
-  // Filter HANYA untuk bulan dan tahun yang dipilih
+  // Filter HANYA untuk bulan dan tahun yang dipilih serta Kasir
   const monthlyTransactions = transactions.filter(t => {
     const date = new Date(t.created_at);
-    return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
+    const matchDate = date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
+    const matchCashier = selectedCashier === 'Semua Kasir' || t.cashier_name === selectedCashier;
+    return matchDate && matchCashier;
   });
 
   const monthlyExpenses = expenses.filter(e => {
     const date = new Date(e.created_at);
-    return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
+    const matchDate = date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
+    const matchCashier = selectedCashier === 'Semua Kasir' || e.cashier_name === selectedCashier;
+    return matchDate && matchCashier;
   });
+
+  const cashiers = Array.from(new Set([
+    ...transactions.map(t => t.cashier_name).filter(Boolean),
+    ...expenses.map(e => e.cashier_name).filter(Boolean)
+  ])) as string[];
   
   const totalGrossRevenue = monthlyTransactions.reduce((sum, t) => sum + t.total_amount, 0);
   const totalExpense = monthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -341,7 +353,7 @@ export default function ReportsPage() {
             <div class="header-banner">
               <h1>Kebab Suuy</h1>
               <p>Laporan Rekapitulasi Keuangan</p>
-              <div class="badge">Periode: ${MONTHS[selectedMonth]} ${selectedYear}</div>
+              <div class="badge">Periode: ${MONTHS[selectedMonth]} ${selectedYear} | Kasir: ${selectedCashier}</div>
             </div>
 
             <div class="content-wrapper">
@@ -424,6 +436,17 @@ export default function ReportsPage() {
           <p style={{ color: 'var(--text-muted)' }}>Analisis penjualan Kasir Kebab Suuy</p>
         </div>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <select 
+            className="btn btn-outline"
+            value={selectedCashier}
+            onChange={(e) => setSelectedCashier(e.target.value)}
+            style={{ appearance: 'auto', paddingRight: '32px' }}
+          >
+            <option value="Semua Kasir">Semua Kasir</option>
+            {cashiers.map((c, i) => (
+              <option key={i} value={c}>{c}</option>
+            ))}
+          </select>
           <select 
             className="btn btn-outline"
             value={selectedMonth}
