@@ -95,16 +95,26 @@ export default function LoginPage() {
           </div>
 
           {role === 'kasir' && kasirList.length > 0 && (
-            <div>
-              <select 
-                value={selectedKasir}
-                onChange={e => setSelectedKasir(e.target.value)}
-                style={{ width: '100%', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '16px', textAlign: 'center', marginBottom: '8px', appearance: 'auto' }}
-              >
-                {kasirList.map(k => (
-                  <option key={k.username} value={k.username}>{k.username}</option>
-                ))}
-              </select>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {kasirList.map(k => (
+                <div 
+                  key={k.username}
+                  onClick={() => setSelectedKasir(k.username)}
+                  style={{ 
+                    padding: '12px', 
+                    border: `1px solid ${selectedKasir === k.username ? 'var(--primary)' : 'var(--border-color)'}`, 
+                    borderRadius: 'var(--radius-md)', 
+                    cursor: 'pointer', 
+                    textAlign: 'center',
+                    backgroundColor: selectedKasir === k.username ? 'var(--primary)' : 'transparent',
+                    color: selectedKasir === k.username ? 'white' : 'inherit',
+                    fontWeight: selectedKasir === k.username ? 'bold' : 'normal',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {k.username}
+                </div>
+              ))}
             </div>
           )}
 
